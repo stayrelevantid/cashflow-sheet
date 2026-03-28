@@ -2,20 +2,12 @@
 /**
  * seed-headers.mjs
  *
- * Buat atau update header row di Google Sheet dengan formatting premium:
- * - Bold text
- * - Background warna (dark slate)
- * - Text warna putih
- * - Freeze row pertama
- * - Auto-resize semua kolom
- * - Border bawah header
- * - Alignment center untuk semua header
+ * Setup Google Sheet untuk Family CashFlow-Sheet:
+ * 1. Buat/update tab "Transactions" dengan header row berformat
+ * 2. Buat/update tab "Config" dengan default Users & Categories
  *
  * Usage:
  *   node scripts/seed-headers.mjs
- *
- * Requirements:
- *   - .env file harus sudah diisi: GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY
  */
 
 import { readFileSync } from 'fs';
@@ -31,180 +23,196 @@ try {
 		if (idx === -1 || line.startsWith('#')) continue;
 		const k = line.substring(0, idx).trim();
 		let v = line.substring(idx + 1).trim();
-		if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-			v = v.slice(1, -1);
-		}
+		if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
 		env[k] = v;
 	}
 } catch {
-	console.error('❌ .env file not found. Copy .env.example to .env and fill in your credentials.');
+	console.error('❌ .env file not found.');
 	process.exit(1);
 }
 
 const SHEET_ID = env['GOOGLE_SHEET_ID'];
 const SA_EMAIL = env['GOOGLE_SERVICE_ACCOUNT_EMAIL'];
 const PRIVATE_KEY = (env['GOOGLE_PRIVATE_KEY'] ?? '').replace(/\\n/g, '\n');
-const TAB_NAME = env['GOOGLE_SHEET_TAB_NAME'] || 'Transactions';
+const TRANSACTIONS_TAB = env['GOOGLE_SHEET_TAB_NAME'] || 'Transactions';
+const CONFIG_TAB = 'Config';
 
-if (!SHEET_ID || !SA_EMAIL || !PRIVATE_KEY) {
-	console.error('❌ Missing Google credentials in .env');
-	process.exit(1);
-}
+if (!SHEET_ID || !SA_EMAIL || !PRIVATE_KEY) { console.error('❌ Missing credentials'); process.exit(1); }
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-const auth = new google.auth.JWT({
-	email: SA_EMAIL,
-	key: PRIVATE_KEY,
-	scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
+const auth = new google.auth.JWT({ email: SA_EMAIL, key: PRIVATE_KEY, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
 const sheets = google.sheets({ version: 'v4', auth });
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-const HEADERS = ['ID', 'Tanggal', 'Tipe', 'Kategori', 'Nominal', 'User', 'Catatan'];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const LIGHT_WHITE    = { red: 1,     green: 1,     blue: 1     }; // #FFFFFF
+const LIGHT_GRAY     = { red: 0.973, green: 0.976, blue: 0.984 }; // #F8F9FB
+const HEADER_BG      = { red: 0.239, green: 0.305, blue: 0.533 }; // #3D4E88 — indigo
+const HEADER_TEXT    = { red: 1,     green: 1,     blue: 1     };
+const HEADER_BORDER  = { red: 0.161, green: 0.204, blue: 0.42  }; // darker indigo
 
-// Column widths in pixels
-const COLUMN_WIDTHS = [260, 110, 100, 110, 130, 90, 280];
-
-// Header background color (dark slate blue)
-const HEADER_BG = { red: 0.122, green: 0.157, blue: 0.251 }; // #1F2840
-const HEADER_TEXT = { red: 0.945, green: 0.961, blue: 0.98 }; // #F1F5FA
-
-// ─── Step 1: Get sheetId (tab index) ─────────────────────────────────────────
-let sheetTabId = 0;
-try {
+// ─── Get or create sheet tab ──────────────────────────────────────────────────
+async function getOrCreateTab(tabName) {
 	const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
-	const tab = meta.data.sheets?.find(s => s.properties?.title === TAB_NAME);
-	if (tab?.properties?.sheetId !== undefined) {
-		sheetTabId = tab.properties.sheetId;
-		console.log(`📋 Found tab "${TAB_NAME}" with sheetId: ${sheetTabId}`);
-	} else {
-		console.warn(`⚠️  Tab "${TAB_NAME}" not found in spreadsheet — using sheetId 0`);
+	const existing = meta.data.sheets?.find(s => s.properties?.title === tabName);
+	if (existing) {
+		console.log(`📋 Tab "${tabName}" found (sheetId: ${existing.properties.sheetId})`);
+		return existing.properties.sheetId;
 	}
-} catch (err) {
-	console.error('❌ Failed to get sheet metadata:', err.message);
-	process.exit(1);
-}
-
-// ─── Step 2: Write header values ──────────────────────────────────────────────
-try {
-	await sheets.spreadsheets.values.update({
+	// Create tab
+	const res = await sheets.spreadsheets.batchUpdate({
 		spreadsheetId: SHEET_ID,
-		range: `${TAB_NAME}!A1:G1`,
-		valueInputOption: 'RAW',
-		requestBody: { values: [HEADERS] },
+		requestBody: { requests: [{ addSheet: { properties: { title: tabName } } }] }
 	});
-	console.log('✅ Header values written:', HEADERS.join(' | '));
-} catch (err) {
-	console.error('❌ Failed to write headers:', err.message);
-	process.exit(1);
+	const newId = res.data.replies?.[0]?.addSheet?.properties?.sheetId;
+	console.log(`✨ Tab "${tabName}" created (sheetId: ${newId})`);
+	return newId;
 }
 
-// ─── Step 3: Apply formatting ─────────────────────────────────────────────────
-const requests = [
-	// 3a. Bold + Background + Text color + Center align + Font size
+// ─── Format header row ────────────────────────────────────────────────────────
+async function formatHeader(sheetTabId, colCount, colWidths) {
+	const requests = [
+		// Bold, bg, text color, center, padding
+		{
+			repeatCell: {
+				range: { sheetId: sheetTabId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: colCount },
+				cell: {
+					userEnteredFormat: {
+						backgroundColor: HEADER_BG,
+						textFormat: { foregroundColor: HEADER_TEXT, bold: true, fontSize: 11 },
+						horizontalAlignment: 'CENTER',
+						verticalAlignment: 'MIDDLE',
+						padding: { top: 8, bottom: 8, left: 8, right: 8 },
+					},
+				},
+				fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,padding)',
+			},
+		},
+		// Freeze row 1
+		{ updateSheetProperties: { properties: { sheetId: sheetTabId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } },
+		// Column widths
+		...colWidths.map((pixelSize, columnIndex) => ({
+			updateDimensionProperties: {
+				range: { sheetId: sheetTabId, dimension: 'COLUMNS', startIndex: columnIndex, endIndex: columnIndex + 1 },
+				properties: { pixelSize },
+				fields: 'pixelSize',
+			},
+		})),
+		// Header row height 42px
+		{ updateDimensionProperties: { range: { sheetId: sheetTabId, dimension: 'ROWS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 42 }, fields: 'pixelSize' } },
+		// Bottom border on header
+		{
+			updateBorders: {
+				range: { sheetId: sheetTabId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: colCount },
+				bottom: { style: 'SOLID_MEDIUM', color: HEADER_BORDER },
+			},
+		},
+	];
+
+	// Alternating LIGHT row bands for data rows
+	try {
+		await sheets.spreadsheets.batchUpdate({
+			spreadsheetId: SHEET_ID,
+			requestBody: { requests: [{ deleteBanding: { bandedRangeId: sheetTabId + 1 } }] }
+		});
+	} catch { /* ignore if banding doesn't exist */ }
+
+	requests.push({
+		addBanding: {
+			bandedRange: {
+				range: { sheetId: sheetTabId, startRowIndex: 1, endRowIndex: 2000, startColumnIndex: 0, endColumnIndex: colCount },
+				rowProperties: {
+					firstBandColor:  LIGHT_WHITE,
+					secondBandColor: LIGHT_GRAY,
+				},
+			},
+		},
+	});
+
+	await sheets.spreadsheets.batchUpdate({ spreadsheetId: SHEET_ID, requestBody: { requests } });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// STEP 1: Transactions tab
+// ════════════════════════════════════════════════════════════════════════════
+console.log('\n📄 Setting up Transactions tab...');
+const TXN_HEADERS   = ['ID', 'Tanggal', 'Tipe', 'Kategori', 'Nominal', 'User', 'Catatan'];
+const TXN_WIDTHS    = [260, 110, 100, 120, 130, 90, 280];
+
+const txnTabId = await getOrCreateTab(TRANSACTIONS_TAB);
+
+await sheets.spreadsheets.values.update({
+	spreadsheetId: SHEET_ID,
+	range: `${TRANSACTIONS_TAB}!A1:G1`,
+	valueInputOption: 'RAW',
+	requestBody: { values: [TXN_HEADERS] },
+});
+
+await formatHeader(txnTabId, 7, TXN_WIDTHS);
+console.log('✅ Transactions tab ready:', TXN_HEADERS.join(' | '));
+
+// ════════════════════════════════════════════════════════════════════════════
+// STEP 2: Config tab
+// ════════════════════════════════════════════════════════════════════════════
+console.log('\n⚙️  Setting up Config tab...');
+const configTabId = await getOrCreateTab(CONFIG_TAB);
+
+// Check if Config already has data (don't overwrite)
+const existingConfig = await sheets.spreadsheets.values.get({
+	spreadsheetId: SHEET_ID,
+	range: `${CONFIG_TAB}!A1:G20`,
+});
+const hasData = existingConfig.data.values && existingConfig.data.values.length > 0;
+
+if (!hasData) {
+	// Write default config data
+	await sheets.spreadsheets.values.batchUpdate({
+		spreadsheetId: SHEET_ID,
+		requestBody: {
+			valueInputOption: 'RAW',
+			data: [
+				// Column A: Users
+				{ range: `${CONFIG_TAB}!A1:A4`, values: [['Users'], ['Papa'], ['Mama'], ['Ara']] },
+				// Column C: Expense Categories
+				{ range: `${CONFIG_TAB}!C1:C7`, values: [['Expense Categories'], ['Makan'], ['Transportasi'], ['Jajan'], ['Belanja'], ['Pendidikan'], ['Lain']] },
+				// Column E: Income Categories
+				{ range: `${CONFIG_TAB}!E1:E5`, values: [['Income Categories'], ['Gaji'], ['Bonus'], ['Freelance'], ['Lain']] },
+			],
+		},
+	});
+	console.log('✅ Default config data written');
+} else {
+	console.log('ℹ️  Config tab already has data — skipping default data write');
+}
+
+// Format Config tab headers (row 1: Users, Expense Categories, Income Categories)
+const configFormatRequests = [
 	{
 		repeatCell: {
-			range: { sheetId: sheetTabId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 7 },
+			range: { sheetId: configTabId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 },
 			cell: {
 				userEnteredFormat: {
 					backgroundColor: HEADER_BG,
-					textFormat: {
-						foregroundColor: HEADER_TEXT,
-						bold: true,
-						fontSize: 11,
-						fontFamily: 'Inter',
-					},
+					textFormat: { foregroundColor: HEADER_TEXT, bold: true, fontSize: 11 },
 					horizontalAlignment: 'CENTER',
 					verticalAlignment: 'MIDDLE',
-					padding: { top: 8, bottom: 8, left: 8, right: 8 },
 				},
 			},
-			fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,padding)',
+			fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
 		},
 	},
-
-	// 3b. Freeze first row
-	{
-		updateSheetProperties: {
-			properties: {
-				sheetId: sheetTabId,
-				gridProperties: { frozenRowCount: 1 },
-			},
-			fields: 'gridProperties.frozenRowCount',
-		},
-	},
-
-	// 3c. Set column widths
-	...COLUMN_WIDTHS.map((pixelSize, columnIndex) => ({
+	// Column widths for Config
+	...[180, 20, 220, 20, 220].map((pixelSize, columnIndex) => ({
 		updateDimensionProperties: {
-			range: {
-				sheetId: sheetTabId,
-				dimension: 'COLUMNS',
-				startIndex: columnIndex,
-				endIndex: columnIndex + 1,
-			},
+			range: { sheetId: configTabId, dimension: 'COLUMNS', startIndex: columnIndex, endIndex: columnIndex + 1 },
 			properties: { pixelSize },
 			fields: 'pixelSize',
 		},
 	})),
-
-	// 3d. Set row height for header
-	{
-		updateDimensionProperties: {
-			range: { sheetId: sheetTabId, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
-			properties: { pixelSize: 40 },
-			fields: 'pixelSize',
-		},
-	},
-
-	// 3e. Bottom border on header row
-	{
-		updateBorders: {
-			range: { sheetId: sheetTabId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 7 },
-			bottom: {
-				style: 'SOLID_MEDIUM',
-				color: { red: 0.388, green: 0.4, blue: 0.643 }, // indigo accent
-			},
-		},
-	},
-
-	// 3f. Alternating row bands for data rows
-	{
-		addBanding: {
-			bandedRange: {
-				bandedRangeId: 1,
-				range: { sheetId: sheetTabId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: 0, endColumnIndex: 7 },
-				rowProperties: {
-					headerColor: HEADER_BG,
-					firstBandColor: { red: 0.067, green: 0.082, blue: 0.133 }, // #111522
-					secondBandColor: { red: 0.082, green: 0.102, blue: 0.161 }, // #151A29
-				},
-			},
-		},
-	},
+	{ updateSheetProperties: { properties: { sheetId: configTabId, gridProperties: { frozenRowCount: 1 } }, fields: 'gridProperties.frozenRowCount' } },
 ];
 
-try {
-	await sheets.spreadsheets.batchUpdate({
-		spreadsheetId: SHEET_ID,
-		requestBody: { requests },
-	});
-	console.log('✅ Formatting applied:');
-	console.log('   • Bold header with dark slate background');
-	console.log('   • Row 1 frozen');
-	console.log('   • Column widths optimized');
-	console.log('   • Header row height: 40px');
-	console.log('   • Indigo bottom border on header');
-	console.log('   • Alternating row bands for data rows');
-} catch (err) {
-	// addBanding might fail if banding already exists — that's ok
-	if (err.message?.includes('banding') || err.message?.includes('already')) {
-		console.log('✅ Formatting applied (banding already existed, skipped)');
-	} else {
-		console.warn('⚠️  Formatting partially applied:', err.message);
-	}
-}
+await sheets.spreadsheets.batchUpdate({ spreadsheetId: SHEET_ID, requestBody: { requests: configFormatRequests } });
+console.log('✅ Config tab formatted');
 
-console.log(`\n🎉 Sheet "${TAB_NAME}" adalah siap digunakan!`);
-console.log(`   Columns: ${HEADERS.join(' | ')}`);
+console.log('\n🎉 Sheet setup complete!');
+console.log('   Edit the Config tab directly in Google Sheets to add/remove users & categories,');
+console.log('   or use the Settings panel in the app dashboard.');

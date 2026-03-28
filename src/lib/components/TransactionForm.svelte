@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { userStore } from '$lib/stores/userStore';
-	import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '$lib/types/transaction';
+	import { config } from '$lib/stores/configStore';
 	import { todayISO } from '$lib/utils/formatter';
 
 	let { onsuccess, onclose }: { onsuccess: () => void; onclose: () => void } = $props();
@@ -13,13 +13,14 @@
 	let loading = $state(false);
 	let errorMsg = $state('');
 
-	const categories = $derived(tipe === 'Expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES);
+	const categories = $derived(tipe === 'Expense' ? $config.expenseCategories : $config.incomeCategories);
 
 	$effect(() => {
-		// Reset category when type changes
 		void tipe;
 		kategori = '';
 	});
+
+	const activeUser = $derived($userStore === 'Global' ? ($config.users[0] ?? 'Papa') : $userStore);
 
 	async function handleSubmit() {
 		errorMsg = '';
@@ -35,7 +36,7 @@
 				body: JSON.stringify({
 					tanggal, tipe, kategori,
 					nominal: Number(nominal),
-					user: $userStore === 'Global' ? 'Papa' : $userStore,
+					user: activeUser,
 					catatan
 				})
 			});
@@ -60,14 +61,14 @@
 		<div class="modal-header">
 			<div>
 				<h2>Transaksi Baru</h2>
-				<p class="subtitle">User aktif: <strong>{$userStore === 'Global' ? 'Papa' : $userStore}</strong></p>
+				<p class="subtitle">User aktif: <strong>{activeUser}</strong></p>
 			</div>
 			<button class="close-btn" onclick={onclose} aria-label="Tutup">✕</button>
 		</div>
 
 		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 			<div class="field">
-				<label class="field-label">Tipe Transaksi</label>
+				<span class="field-label">Tipe Transaksi</span>
 				<div class="type-toggle">
 					<button type="button" class="type-btn" class:active-expense={tipe === 'Expense'} onclick={() => tipe = 'Expense'}>↓ Pengeluaran</button>
 					<button type="button" class="type-btn" class:active-income={tipe === 'Income'} onclick={() => tipe = 'Income'}>↑ Pemasukan</button>
@@ -118,7 +119,7 @@
 	h2 { font-size: 1.3rem; font-weight: 700; margin: 0 0 4px; color: var(--text-primary); }
 	.subtitle { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
 	.subtitle strong { color: #a5b4fc; }
-	.close-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-secondary); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+	.close-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-secondary); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 	.close-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
 	.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 	.field-label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.03em; }

@@ -4,24 +4,30 @@
 
 	import { userStore } from '$lib/stores/userStore';
 	import { transactions, summary, loading, error, period, refreshAll } from '$lib/stores/transactionStore';
+	import { fetchConfig } from '$lib/stores/configStore';
 
 	import ProfileSwitcher from '$lib/components/ProfileSwitcher.svelte';
 	import PeriodFilter from '$lib/components/PeriodFilter.svelte';
 	import KPICard from '$lib/components/KPICard.svelte';
 	import TransactionForm from '$lib/components/TransactionForm.svelte';
 	import TransactionList from '$lib/components/TransactionList.svelte';
+	import SettingsModal from '$lib/components/SettingsModal.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import PieChart from '$lib/components/charts/PieChart.svelte';
 	import BarChart from '$lib/components/charts/BarChart.svelte';
 
 	let showForm = $state(false);
+	let showSettings = $state(false);
 
 	// Re-fetch when user or period changes
 	$effect(() => {
 		refreshAll($userStore, $period);
 	});
 
-	onMount(() => refreshAll($userStore, $period));
+	onMount(() => {
+		fetchConfig();
+		refreshAll($userStore, $period);
+	});
 
 	function handleSuccess() {
 		showForm = false;
@@ -51,6 +57,9 @@
 		</div>
 		<div class="header-right">
 			<ProfileSwitcher />
+			<button class="settings-btn" onclick={() => showSettings = true} id="btn-settings" title="Pengaturan">
+				⚙️
+			</button>
 			<button class="add-btn" onclick={() => showForm = true} id="btn-add-transaction">
 				<span>+</span> Transaksi
 			</button>
@@ -124,6 +133,10 @@
 	<TransactionForm onsuccess={handleSuccess} onclose={() => showForm = false} />
 {/if}
 
+{#if showSettings}
+	<SettingsModal onclose={() => showSettings = false} />
+{/if}
+
 <style>
 	.bg-mesh {
 		position: fixed; inset: 0; z-index: -1;
@@ -145,6 +158,8 @@
 	.add-btn { display: flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--gradient-primary); border: none; border-radius: 12px; color: #fff; font-family: var(--font-sans); font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(99,102,241,0.35); white-space: nowrap; }
 	.add-btn span { font-size: 1.3rem; line-height: 1; }
 	.add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(99,102,241,0.5); }
+	.settings-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 12px; font-size: 1.1rem; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+	.settings-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--border-bright); transform: rotate(30deg); }
 
 	.filters { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
 	.filter-info { display: flex; align-items: center; gap: 6px; }
