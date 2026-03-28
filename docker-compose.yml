@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  cashflow-sheet:
+    build: .
+    image: cashflow-sheet:latest
+    container_name: cashflow-sheet-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=3000

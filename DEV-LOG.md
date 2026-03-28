@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-03-28 — Phase 3: Dockerization (v0.4.0)
+
+**Commit:** `pending`
+
+### Multi-stage Docker Build
+- Dibuat `Dockerfile` dengan multi-stage build (builder & runner).
+- Menggunakan `node:20-alpine` untuk ukuran image minimal.
+- `builder` stage: install dependencies, build SvelteKit app, lalu `npm prune --production` untuk menghapus dev dependencies.
+- `runner` stage: copy file build dan dependencies yang diperlukan, expose port `3000`.
+
+### Docker Compose
+- Menambahkan `docker-compose.yml` untuk memudahkan deployment lokal atau di server.
+- Bind port `3000:3000` dan mengarahkan file `.env`.
+- Perintah deploy: `docker-compose up -d --build`.
+
+---
+
+
 ## 2026-03-28 — Dropdown User Filter + Extended Period Filter (v0.3.0)
 
 **Commit:** `pending`

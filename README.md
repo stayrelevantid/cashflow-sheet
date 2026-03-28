@@ -192,12 +192,23 @@ cashflow-sheet/
 
 ---
 
-## Docker (Phase 3 — Coming Soon)
+## Docker (Phase 3 — Selesai)
 
+Aplikasi siap dideploy menggunakan Docker dan Docker Compose.
+
+**Menggunakan Docker Compose (Rekomendasi):**
+```bash
+# Pastikan file .env sudah diisi
+docker-compose up -d --build
+```
+
+**Atau menggunakan perintah Docker standard:**
 ```bash
 docker build -t cashflow-sheet:latest .
-docker run -p 3000:3000 --env-file .env cashflow-sheet:latest
+docker run -d -p 3000:3000 --env-file .env --name cashflow-sheet-app cashflow-sheet:latest
 ```
+
+Aplikasi akan tersedia di: `http://localhost:3000`
 
 ## Kubernetes (Phase 4 — Coming Soon)
 
@@ -215,8 +226,9 @@ kubectl apply -f k8s/
 |---|---|---|
 | Phase 1 | ✅ Done | Backend API + Google Sheets |
 | Phase 2 | ✅ Done | Dashboard UI + Charts + Dynamic Config |
-| Phase 3 | ⏳ Next | Dockerfile + docker-compose |
-| Phase 4 | 🔜 | k3d + Kubernetes manifests |
+| Phase 3 | ✅ Done | Dockerfile + docker-compose |
+| Phase 4 | ⏳ Next | k3d + Kubernetes manifests |
+
 
 ## License
 
