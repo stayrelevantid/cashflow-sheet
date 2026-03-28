@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cashflow-app
+  labels:
+    app: cashflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cashflow
+  template:
+    metadata:
+      labels:
+        app: cashflow
+    spec:
+      containers:
+        - name: cashflow-container
+          image: cashflow-sheet:latest
+          # Required for local k3d images that haven't been pushed to a remote registry
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: cashflow-secret
+          # Good practice to set resource limits
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10

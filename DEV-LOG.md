@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-03-28 — Phase 4: Kubernetes Deployment (v1.0.0 Release)
+
+**Commit:** `pending`
+
+### Kubernetes (k3d) Manifests
+Telah dibuat direktori `k8s/` yang berisi konfigurasi deployment lokal menggunakan Kubernetes (k3d):
+- `secret.example.yaml`: Template Opaque Secret untuk menyimpan credentials Google Cloud. Harus disalin ke `secret.yaml` dan diisi nilainya secara base64 (direkomendasikan) atau via `stringData`.
+- `deployment.yaml`: Deployment SvelteKit yang menggunakan `.env` dari Kubernetes Secret. Termasuk `resources` (requests & limits) dan `readinessProbe` untuk best practices operasional. ImagePullPolicy diset ke `IfNotPresent` untuk mendukung local image dari k3d.
+- `service.yaml`: LoadBalancer service yang secara otomatis mem-bind ke port ingress/host port yang ditenentukan di k3d.
+
+Aplikasi telah berhasil mencapai status rilis **v1.0.0**.
+
+---
+
 ## 2026-03-28 — Phase 3: Dockerization (v0.4.0)
 
 **Commit:** `pending`

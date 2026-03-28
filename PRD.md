@@ -1,6 +1,6 @@
-> **Status:** In Progress — Phase 1 ✅ Phase 2 ✅ Phase 3 ✅ Phase 4 ⏳  
-> **Versi:** 0.4.0  
-> **Tanggal Update:** 2026-03-28  
+> **Status:** Selesai — Phase 1 ✅ Phase 2 ✅ Phase 3 ✅ Phase 4 ✅  
+> **Versi:** 1.0.0  
+> **Tanggal Release:** 2026-03-28  
 > **Developer:** Paino (DevOps/SRE)  
 > **Stack:** SvelteKit · Google Sheets API · Docker · k3d (Kubernetes lokal)
 
@@ -180,7 +180,7 @@ cashflow-sheet/
 | Phase 1 | ✅ Done | Backend API + Google Sheets integration |
 | Phase 2 | ✅ Done | Dashboard UI + Charts + Dynamic Config |
 | Phase 3 | ✅ Done | Dockerfile multi-stage + docker-compose |
-| Phase 4 | ⏳ Next | k3d cluster + Kubernetes manifests |
+| Phase 4 | ✅ Done | k3d cluster + Kubernetes manifests |
 
 ---
 

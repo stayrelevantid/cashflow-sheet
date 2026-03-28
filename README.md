@@ -210,13 +210,35 @@ docker run -d -p 3000:3000 --env-file .env --name cashflow-sheet-app cashflow-sh
 
 Aplikasi akan tersedia di: `http://localhost:3000`
 
-## Kubernetes (Phase 4 — Coming Soon)
+## Kubernetes (Phase 4 — Selesai)
 
+Siap dideploy ke k3d atau cluster Kubernetes standard.
+
+**1. Persiapkan build container:**
 ```bash
-k3d cluster create family-cashflow
-k3d image import cashflow-sheet:latest -c family-cashflow
-kubectl apply -f k8s/
+docker build -t cashflow-sheet:latest .
 ```
+
+**2. Setup k3d cluster & import image:**
+```bash
+k3d cluster create family-cashflow -p "8080:80@loadbalancer"
+k3d image import cashflow-sheet:latest -c family-cashflow
+```
+
+**3. Setup Secret:**
+Salin template `k8s/secret.example.yaml` menjadi `k8s/secret.yaml`, lalu isikan kredensial (pastikan `PRIVATE_KEY` dimasukkan dengan format Literal Line `|`).
+```bash
+cp k8s/secret.example.yaml k8s/secret.yaml
+kubectl apply -f k8s/secret.yaml
+```
+
+**4. Deploy Manifest:**
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+```
+
+Akses aplikasi di: `http://localhost:8080`
 
 ---
 
@@ -227,7 +249,7 @@ kubectl apply -f k8s/
 | Phase 1 | ✅ Done | Backend API + Google Sheets |
 | Phase 2 | ✅ Done | Dashboard UI + Charts + Dynamic Config |
 | Phase 3 | ✅ Done | Dockerfile + docker-compose |
-| Phase 4 | ⏳ Next | k3d + Kubernetes manifests |
+| Phase 4 | ✅ Done | k3d + Kubernetes manifests |
 
 
 ## License
