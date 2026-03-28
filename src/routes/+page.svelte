@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { derived } from 'svelte/store';
 
 	import { userStore } from '$lib/stores/userStore';
-	import { transactions, summary, loading, error, period, refreshAll } from '$lib/stores/transactionStore';
+	import {
+		transactions, summary, loading, error,
+		periodMode, selectedYear, selectedMonth,
+		MONTHS_ID, refreshAll
+	} from '$lib/stores/transactionStore';
 	import { fetchConfig } from '$lib/stores/configStore';
 
 	import ProfileSwitcher from '$lib/components/ProfileSwitcher.svelte';
@@ -19,24 +22,36 @@
 	let showForm = $state(false);
 	let showSettings = $state(false);
 
-	// Re-fetch when user or period changes
+	const PERIOD_LABELS: Record<string, string> = {
+		bulan_ini:  'Bulan Ini',
+		bulan_lalu: 'Bulan Lalu',
+		tahun_ini:  'Tahun Ini',
+		pilih_tahun: `Tahun ${$selectedYear}`,
+		pilih_bulan: `${MONTHS_ID[$selectedMonth - 1]} ${$selectedYear}`,
+	};
+
+	const periodLabel = $derived(
+		$periodMode === 'pilih_tahun'
+			? `Tahun ${$selectedYear}`
+			: $periodMode === 'pilih_bulan'
+			? `${MONTHS_ID[$selectedMonth - 1]} ${$selectedYear}`
+			: PERIOD_LABELS[$periodMode] ?? $periodMode
+	);
+
+	// Re-fetch whenever user, mode, year, or month changes
 	$effect(() => {
-		refreshAll($userStore, $period);
+		refreshAll($userStore, $periodMode, $selectedYear, $selectedMonth);
 	});
 
 	onMount(() => {
 		fetchConfig();
-		refreshAll($userStore, $period);
+		refreshAll($userStore, $periodMode, $selectedYear, $selectedMonth);
 	});
 
 	function handleSuccess() {
 		showForm = false;
-		refreshAll($userStore, $period);
+		refreshAll($userStore, $periodMode, $selectedYear, $selectedMonth);
 	}
-
-	const periodLabel = derived(period, (p) =>
-		p === 'month' ? 'Bulan Ini' : p === 'year' ? 'Tahun Ini' : 'Semua Waktu'
-	);
 </script>
 
 <svelte:head>
@@ -70,12 +85,9 @@
 	<section class="filters">
 		<div class="filter-info">
 			<span class="user-context">
-				{$userStore === 'Global' ? '🌐 Semua Anggota'
-					: $userStore === 'Papa' ? '👨 Papa'
-					: $userStore === 'Mama' ? '👩 Mama'
-					: '👧 Ara'}
+				{$userStore === 'Global' ? '🌐 Semua Anggota' : `👤 ${$userStore}`}
 			</span>
-			<span class="period-label">· {$periodLabel}</span>
+			<span class="period-label">· {periodLabel}</span>
 		</div>
 		<PeriodFilter />
 	</section>

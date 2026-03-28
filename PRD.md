@@ -1,5 +1,5 @@
 > **Status:** In Progress — Phase 1 ✅ Phase 2 ✅ Phase 3 ⏳  
-> **Versi:** 0.2.0  
+> **Versi:** 0.3.0  
 > **Tanggal Update:** 2026-03-28  
 > **Developer:** Paino (DevOps/SRE)  
 > **Stack:** SvelteKit · Google Sheets API · Docker · k3d (Kubernetes lokal)

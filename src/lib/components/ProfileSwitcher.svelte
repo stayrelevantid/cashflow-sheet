@@ -6,32 +6,62 @@
 	const allUsers = $derived(['Global', ...$config.users]);
 
 	const avatarFor = (name: string) => {
+		if (name === 'Global') return '🌐';
 		const idx = $config.users.indexOf(name);
 		const emojis = ['👨', '👩', '👧', '👦', '🧑', '👴', '👵'];
-		if (name === 'Global') return '🌐';
 		return emojis[idx % emojis.length] ?? '👤';
 	};
+
+	const labelFor = (name: string) => `${avatarFor(name)} ${name}`;
+
+	function onChange(e: Event) {
+		userStore.select((e.target as HTMLSelectElement).value as 'Global');
+	}
 </script>
 
-<div class="switcher">
-	{#each allUsers as user}
-		<button
-			class="tab"
-			class:active={$userStore === user}
-			onclick={() => userStore.select(user as 'Global' | 'Papa' | 'Mama' | 'Ara')}
-			aria-pressed={$userStore === user}
-		>
-			<span class="avatar">{avatarFor(user)}</span>
-			<span class="name">{user}</span>
-		</button>
-	{/each}
+<div class="select-wrap">
+	<select class="user-select" onchange={onChange} value={$userStore} id="user-select">
+		{#each allUsers as user}
+			<option value={user}>{labelFor(user)}</option>
+		{/each}
+	</select>
 </div>
 
 <style>
-	.switcher { display: flex; gap: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 14px; padding: 5px; flex-wrap: wrap; }
-	.tab { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 10px; border: none; background: transparent; color: var(--text-secondary); font-family: var(--font-sans); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
-	.tab:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
-	.tab.active { background: var(--gradient-primary); color: #fff; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35); }
-	.avatar { font-size: 1rem; line-height: 1; }
-	.name { font-weight: 600; }
+	.select-wrap {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+	}
+	.select-wrap::after {
+		content: '▾';
+		position: absolute;
+		right: 12px;
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		pointer-events: none;
+	}
+
+	.user-select {
+		appearance: none;
+		background: rgba(99,102,241,0.12);
+		border: 1px solid rgba(99,102,241,0.35);
+		border-radius: 12px;
+		color: #c7d2fe;
+		font-family: var(--font-sans);
+		font-size: 0.875rem;
+		font-weight: 700;
+		padding: 9px 36px 9px 14px;
+		cursor: pointer;
+		outline: none;
+		transition: all 0.2s;
+		min-width: 140px;
+	}
+	.user-select:hover,
+	.user-select:focus {
+		background: rgba(99,102,241,0.2);
+		border-color: #6366f1;
+		box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+	}
+	.user-select option { background: #1e293b; font-weight: 500; color: #e2e8f0; }
 </style>

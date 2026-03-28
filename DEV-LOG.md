@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-03-28 — Dropdown User Filter + Extended Period Filter (v0.3.0)
+
+**Commit:** `pending`
+
+### ProfileSwitcher → Dropdown
+
+- Tab-tabs diganti dengan `<select>` dropdown bergaya custom
+- Tampilkan emoji + nama untuk setiap user
+- Masih membaca users secara dinamis dari `configStore`
+- Tidak mengorbankan ruang horizontal di header
+
+### PeriodFilter → 5 Mode + Year/Month Picker
+
+**Mode yang tersedia:**
+| Mode | Filter yang dikirim ke API |
+|---|---|
+| Bulan Ini | `year=current, month=current` |
+| Bulan Lalu | `year=prev_year, month=prev_month` |
+| Tahun Ini | `year=current` |
+| Pilih Tahun | `year=<selected>` + dropdown tahun muncul |
+| Pilih Bulan | `year=<selected>, month=<selected>` + dropdown tahun & bulan muncul |
+
+**Perubahan teknis:**
+- `transactionStore.ts`: `Period = 'month' | 'year' | 'all'` → `PeriodMode` (5 opsi), tambah `selectedYear` dan `selectedMonth` stores, `buildPeriodParams()` helper, `refreshAll()` kini menerima 4 argumen
+- `/api/summary`: diganti dari param `period` string ke `year` + `month` query params (konsisten dengan `/api/transactions`)
+- `PeriodFilter.svelte`: select utama + conditional year/month pickers
+- `ProfileSwitcher.svelte`: tabs → styled `<select>` dropdown
+- `+page.svelte`: subscribe ke `periodMode`, `selectedYear`, `selectedMonth`; `periodLabel` kini `$derived` rune (bukan store)
+
+---
+
 ## 2026-03-28 — Dynamic Config + Light Sheet Theme (v0.2.0)
 
 **Commit:** `7c40846`

@@ -3,12 +3,13 @@ import type { RequestHandler } from './$types';
 import { getSheetData } from '$lib/utils/sheets';
 import type { Summary } from '$lib/types/transaction';
 
-// ─── GET /api/summary ────────────────────────────────────────────────────────
-// Query params: user (string), period ("month" | "year" | "all")
+// GET /api/summary
+// Query: user, year, month (all optional — if none, returns all-time summary)
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const paramUser = url.searchParams.get('user');
-		const paramPeriod = url.searchParams.get('period') ?? 'month'; // default: bulan ini
+		const paramYear = url.searchParams.get('year');
+		const paramMonth = url.searchParams.get('month');
 
 		let data = await getSheetData();
 
@@ -17,15 +18,21 @@ export const GET: RequestHandler = async ({ url }) => {
 			data = data.filter((t) => t.user === paramUser);
 		}
 
-		// Filter by period
-		if (paramPeriod === 'month') {
-			const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
-			data = data.filter((t) => t.tanggal.startsWith(currentMonth));
-		} else if (paramPeriod === 'year') {
-			const currentYear = new Date().getFullYear().toString();
-			data = data.filter((t) => t.tanggal.startsWith(currentYear));
+		// Filter by year
+		if (paramYear) {
+			data = data.filter((t) => t.tanggal.startsWith(paramYear));
 		}
-		// "all" — no date filter
+
+		// Filter by month (requires year too for YYYY-MM match)
+		if (paramYear && paramMonth) {
+			const prefix = `${paramYear}-${String(Number(paramMonth)).padStart(2, '0')}`;
+			data = data.filter((t) => t.tanggal.startsWith(prefix));
+		} else if (!paramYear && paramMonth) {
+			// month only (unlikely but safe) — filter by current year
+			const yr = new Date().getFullYear();
+			const prefix = `${yr}-${String(Number(paramMonth)).padStart(2, '0')}`;
+			data = data.filter((t) => t.tanggal.startsWith(prefix));
+		}
 
 		// Calculate summary
 		let totalIncome = 0;
@@ -38,11 +45,8 @@ export const GET: RequestHandler = async ({ url }) => {
 				totalIncome += t.nominal;
 			} else {
 				totalExpense += t.nominal;
-				// byCategory: group expense by category
 				byCategory[t.kategori] = (byCategory[t.kategori] ?? 0) + t.nominal;
 			}
-
-			// byUser: group expense by user
 			if (t.tipe === 'Expense') {
 				byUser[t.user] = (byUser[t.user] ?? 0) + t.nominal;
 			}
@@ -58,7 +62,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		return json(summary);
 	} catch (err) {
-		console.error('[GET /api/summary] Error:', err);
+		console.error('[GET /api/summary]', err);
 		return json({ error: 'Gagal menghitung summary' }, { status: 500 });
 	}
 };
