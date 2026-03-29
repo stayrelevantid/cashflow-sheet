@@ -10,25 +10,30 @@ import type { Transaction } from '$lib/types/transaction';
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const paramUser = url.searchParams.get('user');
-		const paramMonth = url.searchParams.get('month'); // e.g. "2026-03"
-		const paramYear = url.searchParams.get('year'); // e.g. "2026"
-		const paramType = url.searchParams.get('type'); // "Income" | "Expense"
+		const paramYear = url.searchParams.get('year');
+		const paramMonth = url.searchParams.get('month');
+		const paramType = url.searchParams.get('type');
 
 		let data = await getSheetData();
 
-		// Filter by user (skip filter if "Global" or not provided)
+		// Filter by user
 		if (paramUser && paramUser !== 'Global') {
 			data = data.filter((t) => t.user === paramUser);
 		}
 
-		// Filter by month (YYYY-MM)
-		if (paramMonth) {
-			data = data.filter((t) => t.tanggal.startsWith(paramMonth));
+		// Filter by year
+		if (paramYear) {
+			data = data.filter((t) => t.tanggal.startsWith(paramYear));
 		}
 
-		// Filter by year (YYYY) — only if month is not specified
-		if (paramYear && !paramMonth) {
-			data = data.filter((t) => t.tanggal.startsWith(paramYear));
+		// Filter by month (requires year too for YYYY-MM match)
+		if (paramYear && paramMonth) {
+			const prefix = `${paramYear}-${String(Number(paramMonth)).padStart(2, '0')}`;
+			data = data.filter((t) => t.tanggal.startsWith(prefix));
+		} else if (!paramYear && paramMonth) {
+			const yr = new Date().getFullYear();
+			const prefix = `${yr}-${String(Number(paramMonth)).padStart(2, '0')}`;
+			data = data.filter((t) => t.tanggal.startsWith(prefix));
 		}
 
 		// Filter by transaction type
