@@ -1,18 +1,13 @@
 import { google } from 'googleapis';
-import {
-	GOOGLE_PRIVATE_KEY,
-	GOOGLE_SERVICE_ACCOUNT_EMAIL,
-	GOOGLE_SHEET_ID,
-	GOOGLE_SHEET_TAB_NAME
-} from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 const CONFIG_TAB = 'Config';
-const TRANSACTIONS_TAB = GOOGLE_SHEET_TAB_NAME || 'Transactions';
+const TRANSACTIONS_TAB = env.GOOGLE_SHEET_TAB_NAME || 'Transactions';
 
 function getAuthClient() {
 	return new google.auth.JWT({
-		email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
-		key: GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+		email: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+		key: (env.GOOGLE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
 		scopes: ['https://www.googleapis.com/auth/spreadsheets']
 	});
 }
@@ -41,7 +36,7 @@ export async function getSheetData(): Promise<Transaction[]> {
 	const sheets = getSheetsClient();
 
 	const response = await sheets.spreadsheets.values.get({
-		spreadsheetId: GOOGLE_SHEET_ID,
+		spreadsheetId: env.GOOGLE_SHEET_ID,
 		range: `${TRANSACTIONS_TAB}!A1:G`
 	});
 
@@ -79,7 +74,7 @@ export async function appendRow(transaction: Transaction): Promise<void> {
 	});
 
 	await sheets.spreadsheets.values.append({
-		spreadsheetId: GOOGLE_SHEET_ID,
+		spreadsheetId: env.GOOGLE_SHEET_ID,
 		range: `${TRANSACTIONS_TAB}!A:G`,
 		valueInputOption: 'USER_ENTERED',
 		requestBody: { values: [values] }
@@ -109,7 +104,7 @@ export async function getConfig(): Promise<AppConfig> {
 
 	try {
 		const res = await sheets.spreadsheets.values.get({
-			spreadsheetId: GOOGLE_SHEET_ID,
+			spreadsheetId: env.GOOGLE_SHEET_ID,
 			range: `${CONFIG_TAB}!A1:E50`
 		});
 
@@ -173,12 +168,12 @@ export async function saveConfig(config: AppConfig): Promise<void> {
 
 	// Clear existing data first
 	await sheets.spreadsheets.values.clear({
-		spreadsheetId: GOOGLE_SHEET_ID,
+		spreadsheetId: env.GOOGLE_SHEET_ID,
 		range: `${CONFIG_TAB}!A1:E100`
 	});
 
 	await sheets.spreadsheets.values.update({
-		spreadsheetId: GOOGLE_SHEET_ID,
+		spreadsheetId: env.GOOGLE_SHEET_ID,
 		range: `${CONFIG_TAB}!A1:E${rows.length}`,
 		valueInputOption: 'RAW',
 		requestBody: { values: rows }
@@ -190,7 +185,7 @@ export async function seedHeaders(): Promise<void> {
 	const headers = ['ID', 'Tanggal', 'Tipe', 'Kategori', 'Nominal', 'User', 'Catatan'];
 
 	await sheets.spreadsheets.values.update({
-		spreadsheetId: GOOGLE_SHEET_ID,
+		spreadsheetId: env.GOOGLE_SHEET_ID,
 		range: `${TRANSACTIONS_TAB}!A1:G1`,
 		valueInputOption: 'RAW',
 		requestBody: { values: [headers] }

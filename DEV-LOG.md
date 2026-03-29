@@ -8,9 +8,14 @@
 
 ### Kubernetes (k3d) Manifests
 Telah dibuat direktori `k8s/` yang berisi konfigurasi deployment lokal menggunakan Kubernetes (k3d):
-- `secret.example.yaml`: Template Opaque Secret untuk menyimpan credentials Google Cloud. Harus disalin ke `secret.yaml` dan diisi nilainya secara base64 (direkomendasikan) atau via `stringData`.
-- `deployment.yaml`: Deployment SvelteKit yang menggunakan `.env` dari Kubernetes Secret. Termasuk `resources` (requests & limits) dan `readinessProbe` untuk best practices operasional. ImagePullPolicy diset ke `IfNotPresent` untuk mendukung local image dari k3d.
-- `service.yaml`: LoadBalancer service yang secara otomatis mem-bind ke port ingress/host port yang ditenentukan di k3d.
+- `secret.yaml`: Menyimpan credentials Google Cloud (diabaikan oleh git).
+- `deployment.yaml`: Deployment SvelteKit dengan resources limits & readiness probe.
+- `service.yaml`: Service type LoadBalancer untuk eksposur port.
+- `ingress.yaml`: Ingress controller rule untuk routing domain `cashflow.local`.
+
+### Host Configuration
+- Domain `cashflow.local` dipetakan ke `127.0.0.1` di `/etc/hosts`.
+- Akses aplikasi via: `http://cashflow.local:8081`.
 
 Aplikasi telah berhasil mencapai status rilis **v1.0.0**.
 

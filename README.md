@@ -234,11 +234,19 @@ kubectl apply -f k8s/secret.yaml
 
 **4. Deploy Manifest:**
 ```bash
+kubectl apply -f k8s/secret.yaml
 kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
 ```
 
-Akses aplikasi di: `http://localhost:8080`
+**5. Konfigurasi /etc/hosts:**
+Tambahkan baris berikut ke file `/etc/hosts` di komputer kamu:
+```text
+127.0.0.1 cashflow.local
+```
+
+Akses aplikasi di: `http://cashflow.local:8081`
 
 ---
 
